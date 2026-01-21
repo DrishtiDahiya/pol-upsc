@@ -1,0 +1,15 @@
+# Data Files
+lakshmikanth.txt
+pol.txt
+laxmikanth.pdf
+*.html
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# OS
+.DS_Store
