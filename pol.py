@@ -103,13 +103,18 @@ def create_pdf(text, query):
         # Effective page width
         epw = pdf.epw
         
-        # Title - Strictly ASCII
+        # Robust ASCII cleaner: Only allow standard printable characters
+        def clean_text(s):
+            # Keep standard ASCII (32-126) and newlines
+            return "".join(c for c in s if 32 <= ord(c) <= 126 or c == '\n')
+        
+        # Title
         pdf.set_font("Helvetica", "B", 16)
-        safe_title = f"UPSC Polity Notes: {query}".encode('ascii', 'ignore').decode('ascii')
+        safe_title = clean_text(f"UPSC Polity Notes: {query}")
         pdf.multi_cell(epw, 8, safe_title, align='C')
         pdf.ln(10)
         
-        # Content - Strictly ASCII
+        # Content
         pdf.set_font("Helvetica", "", 11)
         
         lines = text.split('\n')
@@ -118,42 +123,36 @@ def create_pdf(text, query):
                 pdf.ln(4)
                 continue
                 
-            # Nuclear ASCII cleanup
-            clean_line = line.encode('ascii', 'ignore').decode('ascii')
+            clean_line = clean_text(line)
             
             # Headers
             if clean_line.startswith('#'):
-                pdf.ln(5) # Extra space before headers
+                pdf.ln(5)
                 pdf.set_font("Helvetica", "B", 13)
                 cleaned = clean_line.lstrip('#').strip()
                 pdf.multi_cell(epw, 8, cleaned)
                 pdf.set_font("Helvetica", "", 11)
-                pdf.ln(2) # Small space after headers
+                pdf.ln(2)
             else:
-                # Hanging Indent Logic for Bullets
+                # Hanging Indent Logic
                 if clean_line.strip().startswith(('-', '*')):
-                    # Indent parameters
-                    bullet_indent = 5
-                    text_indent = 10
-                    
-                    # Store current X
-                    orig_x = pdf.get_x()
-                    
-                    # Print bullet
-                    pdf.set_x(orig_x + bullet_indent)
+                    bullet_w = 7  # Width for bullet + space
+                    pdf.set_x(15 + 5) # Bullet offset
                     pdf.write(7, "- ")
                     
-                    # Print text with hanging indent
+                    # Core text calculation
                     core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip()).replace('**', '')
-                    pdf.set_x(orig_x + text_indent)
                     
-                    # Temporarily change left margin for wrap alignment
-                    pdf.set_left_margin(orig_x + text_indent)
-                    pdf.multi_cell(0, 7, core_text)
+                    # Mathematical indent fix: 
+                    # New X = Left Margin (15) + Bullet Indent (5) + Bullet Width (7) = 27
+                    # New Width = EPW - (Total Indent - Left Margin) 
+                    # Actually simpler: Just set left margin for the block
                     
-                    # Reset left margin
-                    pdf.set_left_margin(orig_x)
-                    pdf.set_x(orig_x)
+                    current_x = pdf.get_x()
+                    pdf.set_left_margin(current_x)
+                    pdf.multi_cell(0, 7, core_text) # 0 means till the right margin
+                    pdf.set_left_margin(15) # Reset to standard
+                    pdf.set_x(15)
                 else:
                     cleaned = clean_line.replace('**', '').strip()
                     pdf.multi_cell(epw, 7, cleaned)
