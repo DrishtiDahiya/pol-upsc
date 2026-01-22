@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import re
 import google.generativeai as genai
+from fpdf import FPDF
+import io
 
 # Page config
 st.set_page_config(
@@ -92,6 +94,44 @@ def generate_ai_notes(api_key, query, contexts):
     except Exception as e:
         return None, f"Error: {str(e)}"
 
+def create_pdf(text, query):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Title
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(0, 10, f"UPSC Polity Notes: {query}", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Content
+    pdf.set_font("helvetica", "", 12)
+    
+    # Simple markdown parser for basic bold and bullet points
+    lines = text.split('\n')
+    for line in lines:
+        if not line.strip():
+            pdf.ln(5)
+            continue
+            
+        # Headers
+        if line.startswith('#'):
+            pdf.set_font("helvetica", "B", 14)
+            cleaned = line.lstrip('#').strip()
+            pdf.multi_cell(0, 10, cleaned)
+            pdf.set_font("helvetica", "", 12)
+        else:
+            # Basic bullet point handling
+            if line.strip().startswith(('-', '*')):
+                pdf.set_x(15)
+                # Remove bold markers for PDF simplicity
+                cleaned = line.replace('**', '').strip()
+                pdf.multi_cell(0, 10, cleaned)
+            else:
+                cleaned = line.replace('**', '').strip()
+                pdf.multi_cell(0, 10, cleaned)
+                
+    return pdf.output()
+
 # Main UI
 def main():
     css_path = os.path.join(os.path.dirname(__file__), 'style.css')
@@ -181,6 +221,16 @@ def main():
                             st.error(error)
                         else:
                             st.markdown(notes)
+                            
+                            # PDF Download Button
+                            pdf_bytes = create_pdf(notes, query)
+                            st.download_button(
+                                label="📥 Download Notes as PDF",
+                                data=pdf_bytes,
+                                file_name=f"Polity_Notes_{query.replace(' ', '_')}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
                 
                 st.markdown("</div>", unsafe_allow_html=True)
 
