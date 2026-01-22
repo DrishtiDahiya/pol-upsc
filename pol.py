@@ -99,11 +99,13 @@ def create_pdf(text, query):
         pdf = FPDF()
         pdf.add_page()
         
+        # Effective page width
+        epw = pdf.epw
+        
         # Title
         pdf.set_font("helvetica", "B", 16)
-        # Handle title encoding
         safe_title = f"UPSC Polity Notes: {query}".encode('latin-1', 'ignore').decode('latin-1')
-        pdf.cell(0, 10, safe_title, ln=True, align='C')
+        pdf.multi_cell(epw, 10, safe_title, align='C')
         pdf.ln(10)
         
         # Content
@@ -116,25 +118,24 @@ def create_pdf(text, query):
                 pdf.ln(5)
                 continue
                 
-            # Strip non-latin-1 characters (emojis etc) to prevent FPDF errors
             clean_line = line.encode('latin-1', 'ignore').decode('latin-1')
             
             # Headers
             if clean_line.startswith('#'):
                 pdf.set_font("helvetica", "B", 14)
                 cleaned = clean_line.lstrip('#').strip()
-                pdf.multi_cell(0, 10, cleaned)
+                pdf.multi_cell(epw, 10, cleaned)
                 pdf.set_font("helvetica", "", 12)
             else:
-                # Basic bullet point handling
+                # Use string-based prefixing instead of manual X-positioning to avoid space errors
                 if clean_line.strip().startswith(('-', '*')):
-                    pdf.set_x(15)
-                    # Remove bold markers for PDF simplicity
-                    cleaned = clean_line.replace('**', '').strip()
-                    pdf.multi_cell(0, 10, cleaned)
+                    # Replace prefix with a clean bullet point and space
+                    core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip())
+                    cleaned = f"  • {core_text.replace('**', '')}"
                 else:
                     cleaned = clean_line.replace('**', '').strip()
-                    pdf.multi_cell(0, 10, cleaned)
+                
+                pdf.multi_cell(epw, 10, cleaned)
                     
         return pdf.output(), None
     except Exception as e:
