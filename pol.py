@@ -102,34 +102,33 @@ def create_pdf(text, query):
         # Effective page width
         epw = pdf.epw
         
-        # Title
-        pdf.set_font("helvetica", "B", 16)
-        safe_title = f"UPSC Polity Notes: {query}".encode('latin-1', 'ignore').decode('latin-1')
+        # Title - Strictly ASCII
+        pdf.set_font("Helvetica", "B", 16)
+        safe_title = f"UPSC Polity Notes: {query}".encode('ascii', 'ignore').decode('ascii')
         pdf.multi_cell(epw, 10, safe_title, align='C')
         pdf.ln(10)
         
-        # Content
-        pdf.set_font("helvetica", "", 12)
+        # Content - Strictly ASCII
+        pdf.set_font("Helvetica", "", 12)
         
-        # Simple markdown parser for basic bold and bullet points
         lines = text.split('\n')
         for line in lines:
             if not line.strip():
                 pdf.ln(5)
                 continue
                 
-            clean_line = line.encode('latin-1', 'ignore').decode('latin-1')
+            # Nuclear ASCII cleanup
+            clean_line = line.encode('ascii', 'ignore').decode('ascii')
             
             # Headers
             if clean_line.startswith('#'):
-                pdf.set_font("helvetica", "B", 14)
+                pdf.set_font("Helvetica", "B", 14)
                 cleaned = clean_line.lstrip('#').strip()
                 pdf.multi_cell(epw, 10, cleaned)
-                pdf.set_font("helvetica", "", 12)
+                pdf.set_font("Helvetica", "", 12)
             else:
-                # Use string-based prefixing instead of manual X-positioning to avoid space errors
+                # Basic bullet point handling with ASCII dash
                 if clean_line.strip().startswith(('-', '*')):
-                    # Replace prefix with a standard dash supported by Helvetica
                     core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip())
                     cleaned = f"  - {core_text.replace('**', '')}"
                 else:
@@ -137,7 +136,7 @@ def create_pdf(text, query):
                 
                 pdf.multi_cell(epw, 10, cleaned)
                     
-        return pdf.output(), None
+        return bytes(pdf.output()), None
     except Exception as e:
         return None, str(e)
 
@@ -237,7 +236,7 @@ def main():
                                 st.error(f"Could not generate PDF: {pdf_error}")
                             else:
                                 st.download_button(
-                                    label="📥 Download Notes as PDF",
+                                    label="Download Notes as PDF",
                                     data=pdf_bytes,
                                     file_name=f"Polity_Notes_{query.replace(' ', '_')}.pdf",
                                     mime="application/pdf",
