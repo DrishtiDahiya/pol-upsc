@@ -17,12 +17,12 @@ def load_css(file_name):
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Helper to find concepts in text
-def search_concepts_in_file(file_path, query):
-    if not os.path.exists(file_path):
-        return []
-    
-    with open(file_path, 'r') as f:
-        content = f.read()
+def search_concepts_in_file(file_path, query, content=None):
+    if content is None:
+        if not os.path.exists(file_path):
+            return []
+        with open(file_path, 'r') as f:
+            content = f.read()
     
     # Split content by chapters (demarcated by CHAPTER \d+)
     chapters = re.split(r'(?=CHAPTER \d+)', content)
@@ -90,6 +90,10 @@ def main():
     with st.sidebar:
         st.markdown("### ⚙️ Configuration")
         api_key = st.text_input("Gemini API Key", type="password", help="Get your API key from https://aistudio.google.com/", key="gemini_api_key")
+        
+        st.markdown("### 📄 Material")
+        uploaded_file = st.file_uploader("Upload pol.txt (Optional)", type=["txt"], help="If not provided, the default local pol.txt will be used.")
+        
         st.info("Your API key is used only for the current session.")
     
     # Header
@@ -114,8 +118,13 @@ def main():
         if not query:
             st.warning("Please enter a concept to search.")
         else:
-            file_path = os.path.join(os.path.dirname(__file__), 'pol.txt')
-            results = search_concepts_in_file(file_path, query)
+            if uploaded_file is not None:
+                # Read the uploaded file
+                content = uploaded_file.getvalue().decode("utf-8")
+                results = search_concepts_in_file(None, query, content=content)
+            else:
+                file_path = os.path.join(os.path.dirname(__file__), 'pol.txt')
+                results = search_concepts_in_file(file_path, query)
             
             if not results:
                 st.info(f"No mentions found for '{query}' in the current material.")
