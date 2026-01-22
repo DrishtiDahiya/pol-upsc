@@ -59,20 +59,32 @@ def generate_ai_notes(api_key, query, contexts):
         
         prompt = f"""
         You are a UPSC Polity Expert. I will provide you with snippets from a textbook regarding the concept: "{query}".
-        Your task is to synthesize these snippets into a holistic, linked note. 
+        Your task is to synthesize these snippets into a high-yield, structured note for UPSC preparation.
         
-        CRITICAL INSTRUCTIONS:
-        - Use simple, clear, and high-yield language.
-        - Preserve the core constitutional meaning and nuances.
-        - Explain how this concept connects across different chapters (e.g., Executive vs Legislative).
+        CRITICAL FORMATTING INSTRUCTIONS:
+        - Use **Pointers/Bullet points** for all detailed information. Avoid long paragraphs.
+        - Use **Clear Markdown Headers** (`##`, `###`) for topics and sub-topics.
+        - **Bold** key constitutional terms and articles.
+        - Create a logical flow: Concept Definition -> Constitutional Provisions -> Linking with other Chapters -> Exam Relevance.
         
         Material:
         {contexts}
         
-        Format the output with:
-        1. Simple Holistic Overview
-        2. Key Linkages (Connecting the dots across chapters)
-        3. UPSC Quick-Recall (Simple bullet points for Prelims/Mains)
+        Format the output precisely as follows:
+        # {query}: Concept Analysis
+        
+        ## 1. Structured Overview
+        - [Define the concept in 2-3 pointers]
+        
+        ## 2. Core Constitutional Provisions
+        - [Key articles, powers, and duties in pointers]
+        - [Use sub-topics if necessary]
+        
+        ## 3. High-Yield Linkages (Connecting the Dots)
+        - [Explain connections across different chapters in pointers]
+        
+        ## 4. UPSC Quick-Recall (Prelims & Mains Focus)
+        - [Snapshot pointers for fast revision]
         """
         
         response = model.generate_content(prompt)
