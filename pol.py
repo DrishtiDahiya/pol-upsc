@@ -129,9 +129,9 @@ def create_pdf(text, query):
             else:
                 # Use string-based prefixing instead of manual X-positioning to avoid space errors
                 if clean_line.strip().startswith(('-', '*')):
-                    # Replace prefix with a clean bullet point and space
+                    # Replace prefix with a standard dash supported by Helvetica
                     core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip())
-                    cleaned = f"  • {core_text.replace('**', '')}"
+                    cleaned = f"  - {core_text.replace('**', '')}"
                 else:
                     cleaned = clean_line.replace('**', '').strip()
                 
