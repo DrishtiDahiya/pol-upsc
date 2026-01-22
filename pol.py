@@ -154,8 +154,15 @@ def main():
                 if not api_key:
                     st.warning("⚠️ Enter your Gemini API key in the sidebar to generate smart notes.")
                 else:
+                    # Context optimization to avoid 429 Quota errors
+                    max_ai_results = 15
+                    ai_results = results[:max_ai_results]
+                    
+                    if len(results) > max_ai_results:
+                        st.info(f"💡 Showing all {len(results)} results below, but synthesizing notes from the top {max_ai_results} most relevant chapters to stay within API limits.")
+                        
                     with st.spinner(f"Synthesizing knowledge about **{query}**..."):
-                        all_contexts = "\n\n".join([r['content'] for r in results])
+                        all_contexts = "\n\n".join([r['content'] for r in ai_results])
                         notes, error = generate_ai_notes(api_key, query, all_contexts)
                         
                         if error:
