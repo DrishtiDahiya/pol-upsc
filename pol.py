@@ -97,6 +97,7 @@ def generate_ai_notes(api_key, query, contexts):
 def create_pdf(text, query):
     try:
         pdf = FPDF()
+        pdf.set_margins(15, 15, 15)
         pdf.add_page()
         
         # Effective page width
@@ -105,16 +106,16 @@ def create_pdf(text, query):
         # Title - Strictly ASCII
         pdf.set_font("Helvetica", "B", 16)
         safe_title = f"UPSC Polity Notes: {query}".encode('ascii', 'ignore').decode('ascii')
-        pdf.multi_cell(epw, 10, safe_title, align='C')
+        pdf.multi_cell(epw, 8, safe_title, align='C')
         pdf.ln(10)
         
         # Content - Strictly ASCII
-        pdf.set_font("Helvetica", "", 12)
+        pdf.set_font("Helvetica", "", 11)
         
         lines = text.split('\n')
         for line in lines:
             if not line.strip():
-                pdf.ln(5)
+                pdf.ln(4)
                 continue
                 
             # Nuclear ASCII cleanup
@@ -122,19 +123,40 @@ def create_pdf(text, query):
             
             # Headers
             if clean_line.startswith('#'):
-                pdf.set_font("Helvetica", "B", 14)
+                pdf.ln(5) # Extra space before headers
+                pdf.set_font("Helvetica", "B", 13)
                 cleaned = clean_line.lstrip('#').strip()
-                pdf.multi_cell(epw, 10, cleaned)
-                pdf.set_font("Helvetica", "", 12)
+                pdf.multi_cell(epw, 8, cleaned)
+                pdf.set_font("Helvetica", "", 11)
+                pdf.ln(2) # Small space after headers
             else:
-                # Basic bullet point handling with ASCII dash
+                # Hanging Indent Logic for Bullets
                 if clean_line.strip().startswith(('-', '*')):
-                    core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip())
-                    cleaned = f"  - {core_text.replace('**', '')}"
+                    # Indent parameters
+                    bullet_indent = 5
+                    text_indent = 10
+                    
+                    # Store current X
+                    orig_x = pdf.get_x()
+                    
+                    # Print bullet
+                    pdf.set_x(orig_x + bullet_indent)
+                    pdf.write(7, "- ")
+                    
+                    # Print text with hanging indent
+                    core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip()).replace('**', '')
+                    pdf.set_x(orig_x + text_indent)
+                    
+                    # Temporarily change left margin for wrap alignment
+                    pdf.set_left_margin(orig_x + text_indent)
+                    pdf.multi_cell(0, 7, core_text)
+                    
+                    # Reset left margin
+                    pdf.set_left_margin(orig_x)
+                    pdf.set_x(orig_x)
                 else:
                     cleaned = clean_line.replace('**', '').strip()
-                
-                pdf.multi_cell(epw, 10, cleaned)
+                    pdf.multi_cell(epw, 7, cleaned)
                     
         return bytes(pdf.output()), None
     except Exception as e:
