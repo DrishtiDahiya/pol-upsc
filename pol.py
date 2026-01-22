@@ -131,18 +131,21 @@ def main():
             else:
                 st.subheader(f"Found '{query}' in {len(results)} contexts")
                 
-                # Display Results
-                cols = st.columns(len(results))
-                for i, res in enumerate(results):
-                    with cols[i]:
-                        st.markdown(f"""
-                            <div class='glass-card' style='height: 100%;'>
-                                <h3 style='font-size: 1.1rem;'>{res['chapter']}</h3>
-                                <div style='font-size: 0.9rem; color: #cbd5e1; margin-top: 10px;'>
-                                    {"<br><br>".join([f"• {s}" for s in res['snippets'][:3]])}...
+                # Display Results in a grid (fixed 3 columns per row)
+                num_cols = 3
+                for i in range(0, len(results), num_cols):
+                    cols = st.columns(num_cols)
+                    chunk = results[i:i + num_cols]
+                    for j, res in enumerate(chunk):
+                        with cols[j]:
+                            st.markdown(f"""
+                                <div class='glass-card' style='height: 100%; margin-bottom: 20px;'>
+                                    <h3 style='font-size: 1.1rem;'>{res['chapter']}</h3>
+                                    <div style='font-size: 0.9rem; color: #cbd5e1; margin-top: 10px;'>
+                                        {"<br><br>".join([f"• {s}" for s in res['snippets'][:3]])}...
+                                    </div>
                                 </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
 
                 # AI Synthesis Section
                 st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
