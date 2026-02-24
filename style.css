@@ -24,22 +24,25 @@
 }
 
 /* Custom header styling */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
     color: var(--accent-color) !important;
     font-family: 'Outfit', sans-serif;
     letter-spacing: -0.02em;
 }
 
 /* Search bar styling */
-.stTextInput > div > div > input {
-    background: rgba(255, 255, 255, 0.05) !important;
+.stTextInput>div>div>input {
+    background: #f1f5f9 !important;
+    /* Lighter background for black text */
     border: 1px solid var(--glass-border) !important;
-    color: white !important;
+    color: black !important;
     border-radius: 12px !important;
 }
 
 /* Button styling */
-.stButton > button {
+.stButton>button {
     background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%) !important;
     color: white !important;
     border: none !important;
@@ -49,7 +52,7 @@ h1, h2, h3 {
     transition: all 0.3s ease !important;
 }
 
-.stButton > button:hover {
+.stButton>button:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
 }

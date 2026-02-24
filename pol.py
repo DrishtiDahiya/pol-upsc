@@ -7,27 +7,29 @@ import io
 
 # Page config
 st.set_page_config(
-    page_title="Polity Concept Linker",
-    page_icon="⚖️",
+    page_title="UPSC Concept Linker",
+    page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Load CSS
 def load_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    css_path = os.path.join(os.path.dirname(__file__), file_name)
+    if os.path.exists(css_path):
+        with open(css_path) as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Helper to find concepts in text
-def search_concepts_in_file(file_path, query, content=None):
+def search_concepts_in_file(file_path, query, content=None, split_pattern=r'(?i)(?=CHAPTER \d+|Chapter \d+)'):
     if content is None:
-        if not os.path.exists(file_path):
+        if not file_path or not os.path.exists(file_path):
             return []
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding="utf-8") as f:
             content = f.read()
     
-    # Split content by chapters (demarcated by CHAPTER \d+)
-    chapters = re.split(r'(?=CHAPTER \d+)', content)
+    # Split content by chapters
+    chapters = re.split(split_pattern, content)
     
     results = []
     for chapter in chapters:
@@ -35,8 +37,14 @@ def search_concepts_in_file(file_path, query, content=None):
             continue
         if query.lower() in chapter.lower():
             # Extract chapter title
-            title_match = re.search(r'CHAPTER \d+[:]?\s+(.*)', chapter)
-            title = title_match.group(1).strip() if title_match else "Unknown Chapter"
+            title_match = re.search(r'(?i)(?:CHAPTER \d+|Chapter \d+)[:]?\s*(.*)', chapter)
+            title = "Unknown Chapter"
+            if title_match:
+                lines = title_match.group(1).split('\n')
+                for line in lines:
+                    if line.strip():
+                        title = line.strip()
+                        break
             
             # Find relevant snippets (lines containing the query)
             lines = chapter.split('\n')
@@ -51,23 +59,23 @@ def search_concepts_in_file(file_path, query, content=None):
     return results
 
 # AI Generation
-def generate_ai_notes(api_key, query, contexts):
+def generate_ai_notes(api_key, query, contexts, subject_expert="UPSC Expert"):
     if not api_key:
         return None, "Please provide a Gemini API key in the sidebar."
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         
         prompt = f"""
-        You are a UPSC Polity Expert. I will provide you with snippets from a textbook regarding the concept: "{query}".
+        You are a {subject_expert}. I will provide you with snippets from a textbook regarding the concept: "{query}".
         Your task is to synthesize these snippets into a high-yield, structured note for UPSC preparation.
         
         CRITICAL FORMATTING INSTRUCTIONS:
         - Use **Pointers/Bullet points** for all detailed information. Avoid long paragraphs.
         - Use **Clear Markdown Headers** (`##`, `###`) for topics and sub-topics.
-        - **Bold** key constitutional terms and articles.
-        - Create a logical flow: Concept Definition -> Constitutional Provisions -> Linking with other Chapters -> Exam Relevance.
+        - **Bold** key technical terms, articles, or economic concepts.
+        - Create a logical flow: Concept Definition -> Core Provisions/Principles -> Linking with other Topics -> Exam Relevance.
         
         Material:
         {contexts}
@@ -78,12 +86,12 @@ def generate_ai_notes(api_key, query, contexts):
         ## 1. Structured Overview
         - [Define the concept in 2-3 pointers]
         
-        ## 2. Core Constitutional Provisions
-        - [Key articles, powers, and duties in pointers]
+        ## 2. Core Technical Provisions/Details
+        - [Key principles, data, powers, and duties in pointers]
         - [Use sub-topics if necessary]
         
         ## 3. High-Yield Linkages (Connecting the Dots)
-        - [Explain connections across different chapters in pointers]
+        - [Explain connections across different chapters/subjects in pointers]
         
         ## 4. UPSC Quick-Recall (Prelims & Mains Focus)
         - [Snapshot pointers for fast revision]
@@ -94,18 +102,17 @@ def generate_ai_notes(api_key, query, contexts):
     except Exception as e:
         return None, f"Error: {str(e)}"
 
-def fetch_current_affairs(api_key, query):
+def fetch_current_affairs(api_key, query, subject="Polity"):
     if not api_key:
         return None, "Please provide a Gemini API key in the sidebar."
     
     try:
         genai.configure(api_key=api_key)
-        # Using 2.0 flash as it's reliable for structured extraction
-        model = genai.GenerativeModel('gemini-2.0-flash') 
+        model = genai.GenerativeModel('gemini-2.5-pro') 
         
         prompt = f"""
-        You are a UPSC Current Affairs Expert. Focus on the political/legal topic: "{query}".
-        Search for the top 10 most important events, reports, bills, SC judgments, or controversies related to "{query}" that occurred in the last year (Jan 2025 - Jan 2026).
+        You are a UPSC Current Affairs Expert. Focus on the {subject} topic: "{query}".
+        Search for the top 10 most important events, reports, data, bills, or controversies related to "{query}" that occurred in the last year (Jan 2025 - Jan 2026).
         
         PRIORITY INSTRUCTION: Prioritize coverage and analysis from the **Indian Express** (especially 'Explained' sections) and other standard UPSC sources.
         
@@ -132,19 +139,19 @@ def fetch_current_affairs(api_key, query):
     except Exception as e:
         return None, str(e)
 
-def generate_affair_notes(api_key, query, events):
+def generate_affair_notes(api_key, query, events, subject_expert="UPSC Expert"):
     if not api_key:
         return None, "Please provide a Gemini API key in the sidebar."
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         
         events_str = "\n".join([f"- {e['title']}: {e['relevance']}" for e in events])
         
         prompt = f"""
-        You are a UPSC Polity Expert. I will provide you with the top 10 current events related to the topic: "{query}".
-        Your task is to create comprehensive, integrated notes for UPSC preparation that link these recent events with standard polity concepts.
+        You are a {subject_expert}. I will provide you with the top 10 current events related to the topic: "{query}".
+        Your task is to create comprehensive, integrated notes for UPSC preparation that link these recent events with standard subject concepts.
         
         Top Events from 2025-2026:
         {events_str}
@@ -152,12 +159,12 @@ def generate_affair_notes(api_key, query, events):
         CRITICAL STYLE INSTRUCTIONS:
         - **Prioritize Indian Express Perspective**: Incorporate insights/analysis logic typically found in Indian Express 'Explained' or 'Opinion' columns.
         - **Simple Narrative**: Use very simple, easy-to-understand language for the explanations and connections.
-        - **Technical Precision**: DO NOT change or simplify important technical words, constitutional phrases, legal terms, or article names (e.g., 'Writ of Mandamus', 'Doctrine of Basic Structure', 'Constitutional Morality'). Keep these original terms exactly as they are.
+        - **Technical Precision**: DO NOT change or simplify important technical words, articles, or economic terms. Keep original terms exactly as they are.
         
         CRITICAL FORMATTING INSTRUCTIONS:
         - Use **Pointers/Bullet points** for all detailed information.
         - Use **Clear Markdown Headers** (`##`, `###`).
-        - **Bold** key constitutional terms, articles, and committee names.
+        - **Bold** key technical terms and articles.
         
         Format the output precisely as follows:
         # {query}: Current Affairs Analysis (2025-2026)
@@ -169,9 +176,9 @@ def generate_affair_notes(api_key, query, events):
         - [Provide deeper insights inspired by Indian Express analysis]
         - [Keep the language simple but the content high-yield]
         
-        ## 3. Constitutional & Static Linkage 
-        - [Link to Articles, Parts, or SC Judgments using exact technical terms]
-        - [Explain the impact on standard polity logic in simple pointers]
+        ## 3. Conceptual & Static Linkage 
+        - [Link to Static Theory using exact technical terms]
+        - [Explain the impact on standard subject logic in simple pointers]
         
         ## 4. Revision Snapshot (Prelims & Mains)
         - [Key terms and potential question themes]
@@ -182,94 +189,69 @@ def generate_affair_notes(api_key, query, events):
     except Exception as e:
         return None, str(e)
 
-def create_pdf(text, query):
+def create_pdf(text, query, subject_tag="Polity"):
     try:
-        pdf = FPDF()
-        pdf.set_margins(15, 15, 15)
-        pdf.add_page()
+        pdf_file = FPDF()
+        pdf_file.set_margins(15, 15, 15)
+        pdf_file.add_page()
         
         # Effective page width
-        epw = pdf.epw
+        epw = pdf_file.epw
         
-        # Robust ASCII cleaner: Only allow standard printable characters
+        # Robust ASCII cleaner
         def clean_text(s):
-            # Keep standard ASCII (32-126) and newlines
             return "".join(c for c in s if 32 <= ord(c) <= 126 or c == '\n')
         
         # Title
-        pdf.set_font("Helvetica", "B", 16)
-        safe_title = clean_text(f"UPSC Polity Notes: {query}")
-        pdf.multi_cell(epw, 8, safe_title, align='C')
-        pdf.ln(10)
+        pdf_file.set_font("Helvetica", "B", 16)
+        safe_title = clean_text(f"UPSC {subject_tag} Notes: {query}")
+        pdf_file.multi_cell(epw, 8, safe_title, align='C')
+        pdf_file.ln(10)
         
         # Content
-        pdf.set_font("Helvetica", "", 11)
+        pdf_file.set_font("Helvetica", "", 11)
         
         lines = text.split('\n')
         for line in lines:
             if not line.strip():
-                pdf.ln(4)
+                pdf_file.ln(4)
                 continue
                 
             clean_line = clean_text(line)
             
             # Headers
             if clean_line.startswith('#'):
-                pdf.ln(5)
-                pdf.set_font("Helvetica", "B", 13)
+                pdf_file.ln(5)
+                pdf_file.set_font("Helvetica", "B", 13)
                 cleaned = clean_line.lstrip('#').strip()
-                pdf.multi_cell(epw, 8, cleaned)
-                pdf.set_font("Helvetica", "", 11)
-                pdf.ln(2)
+                pdf_file.multi_cell(epw, 8, cleaned)
+                pdf_file.set_font("Helvetica", "", 11)
+                pdf_file.ln(2)
             else:
-                # Hanging Indent Logic
                 if clean_line.strip().startswith(('-', '*')):
-                    bullet_w = 7  # Width for bullet + space
-                    pdf.set_x(15 + 5) # Bullet offset
-                    pdf.write(7, "- ")
-                    
-                    # Core text calculation
+                    pdf_file.set_x(20)
+                    pdf_file.write(7, "- ")
                     core_text = re.sub(r'^[\-\*]\s*', '', clean_line.strip()).replace('**', '')
-                    
-                    # Mathematical indent fix: 
-                    # New X = Left Margin (15) + Bullet Indent (5) + Bullet Width (7) = 27
-                    # New Width = EPW - (Total Indent - Left Margin) 
-                    # Actually simpler: Just set left margin for the block
-                    
-                    current_x = pdf.get_x()
-                    pdf.set_left_margin(current_x)
-                    pdf.multi_cell(0, 7, core_text) # 0 means till the right margin
-                    pdf.set_left_margin(15) # Reset to standard
-                    pdf.set_x(15)
+                    current_x = pdf_file.get_x()
+                    pdf_file.set_left_margin(current_x)
+                    pdf_file.multi_cell(0, 7, core_text)
+                    pdf_file.set_left_margin(15)
+                    pdf_file.set_x(15)
                 else:
                     cleaned = clean_line.replace('**', '').strip()
-                    pdf.multi_cell(epw, 7, cleaned)
+                    pdf_file.multi_cell(epw, 7, cleaned)
                     
-        return bytes(pdf.output()), None
+        return bytes(pdf_file.output()), None
     except Exception as e:
         return None, str(e)
 
-# Main UI
-def main():
-    css_path = os.path.join(os.path.dirname(__file__), 'style.css')
-    if os.path.exists(css_path):
-        load_css(css_path)
-    
-    # Sidebar for configuration
-    with st.sidebar:
-        st.markdown("### ⚙️ Configuration")
-        api_key = st.text_input("Gemini API Key", type="password", help="Get your API key from https://aistudio.google.com/", key="gemini_api_key")
-        
-        st.markdown("### 📄 Material")
-        uploaded_file = st.file_uploader("Upload pol.txt (Optional)", type=["txt"], help="If not provided, the default local pol.txt will be used.")
-        
-        st.info("Your API key is used only for the current session.")
-    
+def render_subject_ui(subject_name, default_file, expert_role, api_key, uploaded_file):
     # Header
-    st.markdown("""
-        <div style='text-align: center; padding: 2rem 0;'>
-            <h1>⚖️ Polity Concept Linker</h1>
-            <p style='color: #94a3b8;'>Synthesize UPSC Polity concepts across Lakshmikanth</p>
+    icon = "⚖️" if subject_name == "Polity" else "📈"
+    st.markdown(f"""
+        <div style='text-align: center; padding: 1rem 0;'>
+            <h1>{icon} {subject_name} Concept Linker</h1>
+            <p style='color: #94a3b8;'>Synthesize UPSC {subject_name} concepts from standard material</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -278,29 +260,41 @@ def main():
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
-            query = st.text_input("Enter a concept (e.g. Money Bill, President, CAG)", placeholder="Type here...", label_visibility="collapsed", key="search_query")
+            query = st.text_input(f"Enter a {subject_name} concept", placeholder="Type here...", label_visibility="collapsed", key=f"query_{subject_name}")
         with col2:
-            search_btn = st.button("Link Concepts", use_container_width=True)
+            search_btn = st.button("Link Concepts", use_container_width=True, key=f"btn_link_{subject_name}")
         with col3:
-            affair_btn = st.button("Current Affair", use_container_width=True)
+            affair_btn = st.button("Current Affair", use_container_width=True, key=f"btn_ca_{subject_name}")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    if search_btn or affair_btn or query:
+    if search_btn or affair_btn or query: # Allow Enter key to trigger search if query is provided
         if not query:
             if search_btn or affair_btn:
                 st.warning("Please enter a concept to search.")
         elif affair_btn:
             if not api_key:
-                st.warning("⚠️ Enter your Gemini API key in the sidebar to fetch current affairs.")
+                st.warning(f"⚠️ Enter your Gemini API key in the sidebar to fetch {subject_name} current affairs.")
             else:
                 with st.spinner(f"Searching for recent events related to **{query}**..."):
-                    events, error = fetch_current_affairs(api_key, query)
+                    events, error = fetch_current_affairs(api_key, query, subject=subject_name)
                     if error:
                         st.error(error)
                     else:
+                        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+                        st.subheader(f"🤖 AI Integrated {subject_name} Current Affair Notes")
+                        with st.spinner("Synthesizing events into UPSC notes..."):
+                            af_notes, af_error = generate_affair_notes(api_key, query, events, subject_expert=expert_role)
+                            if af_error:
+                                st.error(af_error)
+                            else:
+                                st.markdown(af_notes)
+                                pdf_bytes, pdf_error = create_pdf(af_notes, f"{query}_Current_Affairs", subject_tag=subject_name)
+                                if not pdf_error:
+                                    st.download_button(label="Download CA Notes as PDF", data=pdf_bytes, file_name=f"{subject_name}_CA_Notes_{query.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                        st.divider()
                         st.subheader(f"📅 Top Current Events for '{query}' (Last Year)")
-                        
-                        # Display events in a grid
                         num_cols = 2
                         for i in range(0, len(events), num_cols):
                             cols = st.columns(num_cols)
@@ -313,98 +307,92 @@ def main():
                                             <p style='font-size: 0.9rem; color: #cbd5e1;'>{event['relevance']}</p>
                                         </div>
                                     """, unsafe_allow_html=True)
-                        
-                        # AI Current Affair Notes Section
-                        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-                        st.subheader("🤖 AI Integrated Current Affair Notes")
-                        with st.spinner("Synthesizing events into UPSC notes..."):
-                            af_notes, af_error = generate_affair_notes(api_key, query, events)
-                            if af_error:
-                                st.error(af_error)
-                            else:
-                                st.markdown(af_notes)
-                                
-                                # PDF Download Button
-                                pdf_bytes, pdf_error = create_pdf(af_notes, f"{query}_Current_Affairs")
-                                if pdf_error:
-                                    st.error(f"Could not generate PDF: {pdf_error}")
-                                else:
-                                    st.download_button(
-                                        label="Download CA Notes as PDF",
-                                        data=pdf_bytes,
-                                        file_name=f"Polity_CA_Notes_{query.replace(' ', '_')}.pdf",
-                                        mime="application/pdf",
-                                        use_container_width=True
-                                    )
-                        st.markdown("</div>", unsafe_allow_html=True)
 
         elif search_btn:
-            if uploaded_file is not None:
-                # Read the uploaded file
-                content = uploaded_file.getvalue().decode("utf-8")
-                results = search_concepts_in_file(None, query, content=content)
-            else:
-                file_path = os.path.join(os.path.dirname(__file__), 'pol.txt')
-                results = search_concepts_in_file(file_path, query)
-            
-            if not results:
-                st.info(f"No mentions found for '{query}' in the current material.")
-            else:
-                st.subheader(f"Found '{query}' in {len(results)} contexts")
-                
-                # Display Results in a grid (fixed 3 columns per row)
-                num_cols = 3
-                for i in range(0, len(results), num_cols):
-                    cols = st.columns(num_cols)
-                    chunk = results[i:i + num_cols]
-                    for j, res in enumerate(chunk):
-                        with cols[j]:
-                            st.markdown(f"""
-                                <div class='glass-card' style='height: 100%; margin-bottom: 20px;'>
-                                    <h3 style='font-size: 1.1rem;'>{res['chapter']}</h3>
-                                    <div style='font-size: 0.9rem; color: #cbd5e1; margin-top: 10px;'>
-                                        {"<br><br>".join([f"• {s}" for s in res['snippets'][:3]])}...
-                                    </div>
-                                </div>
-                            """, unsafe_allow_html=True)
-
-                # AI Synthesis Section
-                st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-                st.subheader("🤖 AI Synthesized Notes")
-                
-                if not api_key:
-                    st.warning("⚠️ Enter your Gemini API key in the sidebar to generate smart notes.")
+            with st.spinner(f"Linking concepts for **{query}**..."):
+                if uploaded_file is not None:
+                    content = uploaded_file.getvalue().decode("utf-8")
+                    results = search_concepts_in_file(None, query, content=content)
                 else:
-                    # Context optimization to avoid 429 Quota errors
-                    max_ai_results = 15
-                    ai_results = results[:max_ai_results]
-                    
-                    if len(results) > max_ai_results:
-                        st.info(f"💡 Showing all {len(results)} results below, but synthesizing notes from the top {max_ai_results} most relevant chapters to stay within API limits.")
-                        
-                    with st.spinner(f"Synthesizing knowledge about **{query}**..."):
+                    results = search_concepts_in_file(default_file, query)
+                
+                if not results:
+                    st.info(f"No mentions found for '{query}' in the current material.")
+                else:
+                    # AI Synthesis Section First
+                    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+                    st.subheader(f"🤖 AI Synthesized {subject_name} Notes")
+                    if not api_key:
+                        st.warning("⚠️ Enter your Gemini API key in the sidebar to generate smart notes.")
+                    else:
+                        max_ai_results = 15
+                        ai_results = results[:max_ai_results]
                         all_contexts = "\n\n".join([r['content'] for r in ai_results])
-                        notes, error = generate_ai_notes(api_key, query, all_contexts)
-                        
+                        notes, error = generate_ai_notes(api_key, query, all_contexts, subject_expert=expert_role)
                         if error:
                             st.error(error)
                         else:
                             st.markdown(notes)
-                            
-                            # PDF Download Button
-                            pdf_bytes, pdf_error = create_pdf(notes, query)
-                            if pdf_error:
-                                st.error(f"Could not generate PDF: {pdf_error}")
-                            else:
-                                st.download_button(
-                                    label="Download Notes as PDF",
-                                    data=pdf_bytes,
-                                    file_name=f"Polity_Notes_{query.replace(' ', '_')}.pdf",
-                                    mime="application/pdf",
-                                    use_container_width=True
-                                )
-                
-                st.markdown("</div>", unsafe_allow_html=True)
+                            pdf_bytes, pdf_error = create_pdf(notes, query, subject_tag=subject_name)
+                            if not pdf_error:
+                                st.download_button(label="Download Notes as PDF", data=pdf_bytes, file_name=f"{subject_name}_Notes_{query.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                    # Source Contexts at the end
+                    st.divider()
+                    st.subheader(f"📖 Textual Sources ({len(results)} contexts)")
+                    num_cols = 3
+                    for i in range(0, len(results), num_cols):
+                        cols = st.columns(num_cols)
+                        chunk = results[i:i + num_cols]
+                        for j, res in enumerate(chunk):
+                            with cols[j]:
+                                st.markdown(f"""
+                                    <div class='glass-card' style='height: 100%; margin-bottom: 20px;'>
+                                        <h3 style='font-size: 1.1rem;'>{res['chapter']}</h3>
+                                        <div style='font-size: 0.9rem; color: #cbd5e1; margin-top: 10px;'>
+                                            {"<br><br>".join([f"• {s}" for s in res['snippets'][:3]])}...
+                                        </div>
+                                    </div>
+                                """, unsafe_allow_html=True)
+
+# Main UI
+def main():
+    load_css('style.css')
+    
+    # Sidebar for configuration
+    with st.sidebar:
+        st.markdown("### ⚙️ Configuration")
+        api_key = st.text_input("Gemini API Key", type="password", help="Get your API key from https://aistudio.google.com/", key="gemini_api_key")
+        
+        st.markdown("### 📄 Material Upload")
+        uploaded_pol = st.file_uploader("Upload custom pol.txt", type=["txt"], key="upload_pol")
+        uploaded_eco = st.file_uploader("Upload custom eco.txt", type=["txt"], key="upload_eco")
+        
+        st.info("Your API key is used only for the current session.")
+    
+    # Tabs for Subjects
+    tab_pol, tab_eco = st.tabs(["⚖️ Polity", "📈 Economics"])
+    
+    curr_dir = os.path.dirname(__file__)
+    
+    with tab_pol:
+        render_subject_ui(
+            "Polity", 
+            os.path.join(curr_dir, 'pol.txt'), 
+            "UPSC Polity Expert", 
+            api_key, 
+            uploaded_pol
+        )
+        
+    with tab_eco:
+        render_subject_ui(
+            "Economics", 
+            os.path.join(curr_dir, 'eco.txt'), 
+            "UPSC Economics Expert", 
+            api_key, 
+            uploaded_eco
+        )
 
 if __name__ == "__main__":
     main()
